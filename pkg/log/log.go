@@ -74,9 +74,9 @@ func Info(ctx context.Context, msg string, fields ...LogField) {
 	GetLogger().logger.Info(msg)
 }
 
-func Error(ctx context.Context, msg string, fields ...LogField) {
+func Error(ctx context.Context, msg string, err error, fields ...LogField) {
 	// TODO: add fields
-	GetLogger().logger.Error(msg)
+	GetLogger().logger.Error(msg, zap.Error(err))
 }
 
 func Fatal(ctx context.Context, msg string, fields ...LogField) {

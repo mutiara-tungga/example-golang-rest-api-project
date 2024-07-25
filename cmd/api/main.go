@@ -54,7 +54,7 @@ func main() {
 
 	// Attempt a graceful shutdown
 	if err := httpServer.Shutdown(ctx); err != nil {
-		log.Error(ctx, fmt.Sprint("Error server forced to shutdown: ", err))
+		log.Error(ctx, "Error server forced to shutdown: ", err)
 	}
 
 	log.Info(context.Background(), "Http server exiting gracefully")
