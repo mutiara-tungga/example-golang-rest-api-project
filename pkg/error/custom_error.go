@@ -19,6 +19,14 @@ func (err CustomError) OriginalError() error {
 	return err.originalError
 }
 
+func (err CustomError) GetStatusCode() int {
+	return err.statusCode
+}
+
+func (err CustomError) GetErrorCode() string {
+	return err.errorCode
+}
+
 func NewCustomError(
 	message string,
 	errorCode string,
