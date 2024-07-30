@@ -9,6 +9,6 @@ services:
     ports:
       - ${POSTGRES_PORT}:5432
     volumes:
-      - postgres-golang-rest-api-14-7:/var/lib/postgresql/data/
+      - postgres-golang-rest-api-14-10:/var/lib/postgresql/data/
 volumes:
-  postgres-golang-rest-api-14-7:
+  postgres-golang-rest-api-14-10:
