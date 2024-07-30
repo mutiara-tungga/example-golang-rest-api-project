@@ -35,6 +35,12 @@ func WithPostgresDBPassword(password string) PostgresConfigOption {
 	}
 }
 
+func WithPostgresDBName(dbName string) PostgresConfigOption {
+	return func(pc *PostgresConfig) {
+		pc.DatabaseName = dbName
+	}
+}
+
 func WithPostgresDBHost(host string) PostgresConfigOption {
 	return func(pc *PostgresConfig) {
 		pc.Host = host

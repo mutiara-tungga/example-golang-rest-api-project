@@ -34,6 +34,7 @@ func main() {
 		database.WithPostgresDBPort(config.Get().DatabasePort),
 		database.WithPostgresDBUser(config.Get().DatabaseUser),
 		database.WithPostgresDBPassword(config.Get().DatabasePass),
+		database.WithPostgresDBName(config.Get().DatabaseName),
 	)
 
 	// repository
@@ -49,7 +50,7 @@ func main() {
 	userHandler := handlerUser.NewUserHandler(userService)
 
 	// router
-	r.Method(http.MethodPost, "/user", httpserver.Handler(userHandler.CreateUser))
+	r.Method(http.MethodPost, "/api/v1/user", httpserver.Handler(userHandler.CreateUser))
 
 	httpServer := http.Server{
 		Addr:              ":" + config.Get().AppPort,
@@ -61,7 +62,7 @@ func main() {
 
 	// Start HTTP server
 	go func() {
-		log.Info(context.Background(), "Start Http Server")
+		log.Info(context.Background(), fmt.Sprintf("Start Http Server at port %s", config.Get().AppPort))
 
 		if err := httpServer.ListenAndServe(); err != http.ErrServerClosed {
 			log.Fatal(context.Background(), fmt.Sprint("Error HTTP server ListenAndServe: ", err))

@@ -8,7 +8,7 @@ import (
 )
 
 type envConfig struct {
-	AppPort string `env:"APP_PORT"`
+	AppPort string `env:"APP_PORT" envDefault:"8080"`
 
 	DatabaseHost        string `env:"DATABASE_HOST"`
 	DatabasePort        string `env:"DATABASE_PORT"`
