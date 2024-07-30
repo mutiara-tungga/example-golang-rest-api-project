@@ -5,24 +5,26 @@ import (
 	"golang-rest-api/internal/model"
 	pkgErr "golang-rest-api/pkg/error"
 	"golang-rest-api/pkg/log"
+
+	"github.com/jackc/pgx/v5"
 )
 
-type TxFn func(context.Context, ITx) error
+type PgxTxFn func(context.Context, pgx.Tx) error
 
 type TxHandler interface {
-	WithTransaction(context.Context, TxFn) error
+	WithTransaction(context.Context, PgxTxFn) error
 }
 
-type txHandler struct {
-	IPostgres
+type pgxTxHandler struct {
+	db IPostgres
 }
 
 func NewTxHandler(db IPostgres) TxHandler {
-	return &txHandler{db}
+	return &pgxTxHandler{db: db}
 }
 
-func (th *txHandler) WithTransaction(ctx context.Context, fn TxFn) (err error) {
-	tx, err := th.IPostgres.Begin(ctx)
+func (th *pgxTxHandler) WithTransaction(ctx context.Context, fn PgxTxFn) (err error) {
+	tx, err := th.db.Begin(ctx)
 	if err != nil {
 		log.Error(ctx, "failed to begin transaction ", err)
 		return pkgErr.NewCustomErrWithOriginalErr(model.ErrorExecQuery, err)
