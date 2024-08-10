@@ -5,16 +5,18 @@ import (
 	"fmt"
 	"golang-rest-api/internal/model"
 	"golang-rest-api/internal/model/user"
+	userModel "golang-rest-api/internal/model/user"
 	"golang-rest-api/pkg/database"
 	pkgErr "golang-rest-api/pkg/error"
 	"golang-rest-api/pkg/log"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type IUserRepo interface {
-	CreateUserTx(ctx context.Context, tx pgx.Tx, args user.InsertUser) error
-	GetUserByID(ctx context.Context, ID string) (user.User, error)
+	CreateUserTx(ctx context.Context, tx pgx.Tx, args userModel.InsertUser) error
+	GetUserByID(ctx context.Context, ID string) (userModel.User, error)
 }
 
 type UserRepo struct {
@@ -46,18 +48,29 @@ func (r UserRepo) CreateUserTx(ctx context.Context, tx pgx.Tx, args user.InsertU
 
 	if err != nil {
 		log.Error(ctx, "error create user", err)
+
+		if errPg, ok := err.(*pgconn.PgError); ok {
+			switch errPg.Code {
+			case "23505":
+				switch errPg.ConstraintName {
+				case "user_unique_username":
+					return userModel.ErrorDuplicateUsername
+				}
+			}
+		}
+
 		return pkgErr.NewCustomErrWithOriginalErr(model.ErrorExecQuery, err)
 	}
 
 	return nil
 }
 
-func (r UserRepo) GetUserByID(ctx context.Context, ID string) (user.User, error) {
+func (r UserRepo) GetUserByID(ctx context.Context, ID string) (userModel.User, error) {
 	query := `SELECT id, name, username, phone, password, created_by, created_at 
 		FROM users
-		WHERE id = $1`
+		WHERE id = $1 AND deleted_at IS NULL`
 
-	res := user.User{}
+	res := userModel.User{}
 	err := r.db.Get(
 		ctx,
 		&res,
