@@ -65,7 +65,7 @@ func main() {
 		log.Info(context.Background(), fmt.Sprintf("Start Http Server at port %s", config.Get().AppPort))
 
 		if err := httpServer.ListenAndServe(); err != http.ErrServerClosed {
-			log.Fatal(context.Background(), fmt.Sprint("Error HTTP server ListenAndServe: ", err))
+			log.Fatal(context.Background(), "Error HTTP server ListenAndServe: ", err)
 		}
 	}()
 
