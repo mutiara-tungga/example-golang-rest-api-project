@@ -19,3 +19,9 @@
 - run migration:
   - `export DB_URL=postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?sslmode=disable`
   - `make migrateup`
+
+## How to seed user for the first time
+- run `cp script/seed_user/env.example script/seed_user/.env`
+- update the .env
+- fill the csv
+- run `go run script/seed_user/seed_user.go`

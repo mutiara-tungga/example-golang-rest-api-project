@@ -2,7 +2,6 @@ package user
 
 import (
 	"context"
-	"fmt"
 	"golang-rest-api/internal/model"
 	"golang-rest-api/internal/model/user"
 	userModel "golang-rest-api/internal/model/user"
@@ -32,8 +31,6 @@ func NewUserRepo(db database.IPostgres) *UserRepo {
 func (r UserRepo) CreateUserTx(ctx context.Context, tx pgx.Tx, args user.InsertUser) error {
 	query := `INSERT INTO users (id, name, username, phone, password, created_by) 
 		VALUES ($1, $2, $3, $4, $5, $6);`
-
-	fmt.Printf("%+v", args)
 
 	_, err := tx.Exec(
 		ctx,

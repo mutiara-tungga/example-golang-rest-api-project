@@ -6,5 +6,5 @@ import (
 )
 
 var (
-	ErrorDuplicateUsername = pkgErr.NewCustomError("error execute query", "DUPLICATE_USERNAME", http.StatusBadRequest)
+	ErrorDuplicateUsername = pkgErr.NewCustomError("error duplicate username", "DUPLICATE_USERNAME", http.StatusBadRequest)
 )
