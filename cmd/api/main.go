@@ -40,7 +40,7 @@ func main() {
 		database.WithPostgresDBName(config.Get().DatabaseName),
 	)
 
-	jwtGenerator := jwt.New(
+	jwtGenerator := jwt.NewJWTGenerator(
 		jwt.JWTGeneratorWithIssuer(config.Get().AppName),
 		jwt.JWTGeneratorWithSigningMethod(jwt.JWTSigningMethodNameRS256, config.Get().JWTRSAPrivateKey),
 	)

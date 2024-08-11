@@ -28,13 +28,15 @@ type JWTResult struct {
 	RefreshTokenExpiresAt time.Time
 }
 
-//go:generate mockgen -destination=mock/jwt.go -package=mock transport-service/pkg/jwt JWT
+//go:generate mockgen -destination=mock/jwt_generator.go -package=mock golang-rest-api/pkg/jwt JWTGenerator
 type JWTGenerator interface {
 	GenerateJWT(ctx context.Context, user User) (JWTResult, error)
 }
 
 type JWTGeneratorOptions func(*jwtGenerator) error
 
+// JWTGeneratorWithSigningMethod assign jwt signing method and jwt key
+// IF method is RSA key should fill by private key
 func JWTGeneratorWithSigningMethod(methodName JWTSigningMethodName, key string) JWTGeneratorOptions {
 	return func(jg *jwtGenerator) error {
 		jg.jwtSigningMethodName = methodName
@@ -81,7 +83,7 @@ func JWTGeneratorWithIssuer(issuer string) JWTGeneratorOptions {
 	}
 }
 
-func New(options ...JWTGeneratorOptions) jwtGenerator {
+func NewJWTGenerator(options ...JWTGeneratorOptions) jwtGenerator {
 	gen := &jwtGenerator{
 		timeNowFunc:                time.Now,
 		expireDuration:             24 * time.Hour,
@@ -102,7 +104,8 @@ func New(options ...JWTGeneratorOptions) jwtGenerator {
 }
 
 type jwtGenerator struct {
-	jwtKeyString               string
+	jwtKeyString string
+	// IF signing method is RSA should be filled by private key
 	jwtKey                     any
 	jwtSigningMethodName       JWTSigningMethodName
 	signingMethod              jwt.SigningMethod
