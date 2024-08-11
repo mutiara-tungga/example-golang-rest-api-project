@@ -70,7 +70,7 @@ func WriteJsonError(ctx context.Context, w http.ResponseWriter, err error) {
 		Message:    err.Error(),
 	}
 
-	if err, ok := err.(*pkgErr.CustomError); ok {
+	if err, ok := err.(pkgErr.CustomError); ok {
 		hr.ErrorCode = err.GetErrorCode()
 		hr.HTTPStatus = err.GetStatusCode()
 	}
