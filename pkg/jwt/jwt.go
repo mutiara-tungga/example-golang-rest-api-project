@@ -163,7 +163,7 @@ type jwtGenerator struct {
 }
 
 var (
-	MapClaimsKeyID       string = "id"
+	MapClaimsKeyUserID   string = "user_id"
 	MapClaimsKeyUsername string = "username"
 	MapClaimsKeyExpireAt string = "exp"
 	MapClaimsKeyIssuedAt string = "iat"
@@ -174,7 +174,7 @@ func (jg jwtGenerator) GenerateJWT(ctx context.Context, u User) (JWTResult, erro
 	nowUnix := jg.timeNowFunc().Unix()
 	tokenExpiresUnix := nowUnix + jg.expireDurationInSecond
 	claims := jwt.MapClaims{
-		MapClaimsKeyID:       u.ID,
+		MapClaimsKeyUserID:   u.ID,
 		MapClaimsKeyUsername: u.Username,
 		MapClaimsKeyExpireAt: tokenExpiresUnix,
 		MapClaimsKeyIssuedAt: nowUnix,
