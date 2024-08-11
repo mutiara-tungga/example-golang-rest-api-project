@@ -4,8 +4,13 @@ import (
 	"context"
 	pkgErr "golang-rest-api/pkg/error"
 	"golang-rest-api/pkg/log"
+	"net/http"
 
 	"golang.org/x/crypto/bcrypt"
+)
+
+var (
+	ErrFailedProcessPassword = pkgErr.NewCustomError("Failed Process Password", "FAILED_PROCESS_PASSWORD", http.StatusBadGateway)
 )
 
 //go:generate mockgen -destination=mock/crypter.go -package=mock transport-service/pkg/crypter Crypter
@@ -24,7 +29,7 @@ func (c crypter) GenerateHash(ctx context.Context, password string) ([]byte, err
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
 	if err != nil {
 		log.Error(ctx, "failed generate hash password", err)
-		return nil, pkgErr.NewCustomErrWithOriginalErr(pkgErr.ErrFailedProcessPassword, err)
+		return nil, pkgErr.NewCustomErrWithOriginalErr(ErrFailedProcessPassword, err)
 	}
 
 	return passwordHash, nil
