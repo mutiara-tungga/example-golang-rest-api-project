@@ -1,5 +1,7 @@
 package user
 
+import "time"
+
 type InsertUser struct {
 	ID       string
 	Name     string
@@ -31,4 +33,16 @@ type CreateUserResp struct {
 	Name     string `json:"name"`
 	Username string `json:"username"`
 	Phone    string `json:"phone"`
+}
+
+type UserLoginReq struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type UserLoginResp struct {
+	AccessToken           string
+	ExpiresAt             time.Time
+	RefreshToken          string
+	RefreshTokenExpiresAt time.Time
 }

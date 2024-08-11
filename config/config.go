@@ -9,6 +9,10 @@ import (
 
 type envConfig struct {
 	AppPort string `env:"APP_PORT" envDefault:"8080"`
+	AppName string `env:"APP_NAME" envDefault:"golang-rest-api"`
+
+	JWTRSAPrivateKey string `env:"JWT_RSA_PRIVATE_KEY"`
+	JWTRSAPublicKey  string `env:"JWT_RSA_PUBLIC_KEY"`
 
 	DatabaseHost        string `env:"DATABASE_HOST"`
 	DatabasePort        string `env:"DATABASE_PORT"`

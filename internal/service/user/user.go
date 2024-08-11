@@ -6,12 +6,14 @@ import (
 	repoUser "golang-rest-api/internal/repository/user"
 	"golang-rest-api/pkg/crypter"
 	"golang-rest-api/pkg/database"
+	"golang-rest-api/pkg/jwt"
 
 	"github.com/google/uuid"
 )
 
 type IUserService interface {
 	CreateUser(ctx context.Context, req modelUser.CreateUserReq) (modelUser.CreateUserResp, error)
+	UserLogin(ctx context.Context, req modelUser.UserLoginReq) (modelUser.UserLoginResp, error)
 }
 
 type UserServiceOption func(*UserService)
@@ -28,11 +30,18 @@ func WithTxHandler(db database.IPostgres) UserServiceOption {
 	}
 }
 
+func WithJWTGenerator(jwtGenerator jwt.JWTGenerator) UserServiceOption {
+	return func(us *UserService) {
+		us.jwtGenerator = jwtGenerator
+	}
+}
+
 type UserService struct {
 	userRepo      repoUser.IUserRepo
 	txHandler     database.TxHandler
 	uuidGenerator func() string
 	crypter       crypter.Crypter
+	jwtGenerator  jwt.JWTGenerator
 }
 
 func NewUserService(options ...UserServiceOption) UserService {

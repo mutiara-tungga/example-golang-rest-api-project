@@ -16,6 +16,7 @@ import (
 type IUserRepo interface {
 	CreateUserTx(ctx context.Context, tx pgx.Tx, args userModel.InsertUser) error
 	GetUserByID(ctx context.Context, ID string) (userModel.User, error)
+	GetUserByUsername(ctx context.Context, username string) (userModel.User, error)
 }
 
 type UserRepo struct {
@@ -63,7 +64,7 @@ func (r UserRepo) CreateUserTx(ctx context.Context, tx pgx.Tx, args user.InsertU
 }
 
 func (r UserRepo) GetUserByID(ctx context.Context, ID string) (userModel.User, error) {
-	query := `SELECT id, name, username, phone, password, created_by, created_at 
+	query := `SELECT id, name, username, phone, password
 		FROM users
 		WHERE id = $1 AND deleted_at IS NULL`
 
@@ -77,6 +78,27 @@ func (r UserRepo) GetUserByID(ctx context.Context, ID string) (userModel.User, e
 
 	if err != nil {
 		log.Error(ctx, "error get user by id", err)
+		return res, pkgErr.NewCustomErrWithOriginalErr(model.ErrorExecQuery, err)
+	}
+
+	return res, nil
+}
+
+func (r UserRepo) GetUserByUsername(ctx context.Context, username string) (userModel.User, error) {
+	query := `SELECT id, name, username, phone, password
+		FROM users
+		WHERE username = $1 AND deleted_at IS NULL`
+
+	res := userModel.User{}
+	err := r.db.Get(
+		ctx,
+		&res,
+		query,
+		username,
+	)
+
+	if err != nil {
+		log.Error(ctx, "error get user by username", err)
 		return res, pkgErr.NewCustomErrWithOriginalErr(model.ErrorExecQuery, err)
 	}
 

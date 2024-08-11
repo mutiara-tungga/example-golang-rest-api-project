@@ -8,7 +8,9 @@ import (
 	repoUser "golang-rest-api/internal/repository/user"
 	serviceUser "golang-rest-api/internal/service/user"
 	"golang-rest-api/pkg/database"
+	httpmiddleware "golang-rest-api/pkg/http_middleware"
 	httpserver "golang-rest-api/pkg/http_server"
+	"golang-rest-api/pkg/jwt"
 	"golang-rest-api/pkg/log"
 	"net/http"
 	"os"
@@ -23,11 +25,12 @@ func main() {
 	config.LoadEnvConfig()
 	log.InitLogger(log.LoggerMetaData{
 		LogLevel:   "",
-		Service:    "golang-rest-api",
+		Service:    config.Get().AppName,
 		AppVersion: "v0.0.0",
 	})
 
 	r := chi.NewRouter()
+	r.Use(httpmiddleware.PanicRecoverer)
 
 	posgresDB := database.NewPostgres(
 		database.WithPostgresDBHost(config.Get().DatabaseHost),
@@ -37,6 +40,11 @@ func main() {
 		database.WithPostgresDBName(config.Get().DatabaseName),
 	)
 
+	jwtGenerator := jwt.New(
+		jwt.JWTGeneratorWithIssuer(config.Get().AppName),
+		jwt.JWTGeneratorWithSigningMethod(jwt.JWTSigningMethodNameRS256, config.Get().JWTRSAPrivateKey),
+	)
+
 	// repository
 	userRepo := repoUser.NewUserRepo(posgresDB)
 
@@ -44,6 +52,7 @@ func main() {
 	userService := serviceUser.NewUserService(
 		serviceUser.WithTxHandler(posgresDB),
 		serviceUser.WithUserRepo(userRepo),
+		serviceUser.WithJWTGenerator(jwtGenerator),
 	)
 
 	// handler
@@ -51,6 +60,7 @@ func main() {
 
 	// router
 	r.Method(http.MethodPost, "/api/v1/user", httpserver.Handler(userHandler.CreateUser))
+	r.Method(http.MethodPost, "/api/v1/user/login", httpserver.Handler(userHandler.Login))
 
 	httpServer := http.Server{
 		Addr:              ":" + config.Get().AppPort,
