@@ -26,14 +26,14 @@ func (h UserHandler) Login(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     "access_token",
+		Name:     modelUser.AccessTokenCookieName,
 		Value:    jwtToken.AccessToken,
 		Expires:  jwtToken.ExpiresAt,
 		HttpOnly: true,
 	})
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     "refresh_token",
+		Name:     modelUser.RefreshTokenCookieName,
 		Value:    jwtToken.RefreshToken,
 		Expires:  jwtToken.RefreshTokenExpiresAt,
 		HttpOnly: true,
