@@ -22,7 +22,7 @@ const (
 	contextKeyUserClaims contexKey = "user_claims"
 )
 
-func JWTAuthUser(validator jwt.JWTValidator, cookieName string) func(next http.Handler) http.Handler {
+func JWTAuthUser(parser jwt.JWTParser, cookieName string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
@@ -33,7 +33,7 @@ func JWTAuthUser(validator jwt.JWTValidator, cookieName string) func(next http.H
 					return
 				}
 
-				tokenClaims, err := validator.Validate(ctx, tokenString)
+				tokenClaims, err := parser.ParseAndValidate(ctx, tokenString)
 				if err != nil {
 					httpserver.WriteJsonError(ctx, w, pkgErr.NewCustomErrWithOriginalErr(ErrorUnauthorized, err))
 					return

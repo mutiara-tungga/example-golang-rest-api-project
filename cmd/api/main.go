@@ -35,9 +35,9 @@ func main() {
 		jwt.JWTGeneratorWithSigningMethod(jwt.JWTSigningMethodNameRS256, config.Get().JWTRSAPrivateKey),
 	)
 
-	jwtValidator := jwt.NewJWTValidator(
-		jwt.JWTValidatorWithSigningMethod(jwt.JWTSigningMethodNameRS256, config.Get().JWTRSAPublicKey),
-		jwt.JWTValidatorWithValidIssuer(config.Get().AppName),
+	jwtValidator := jwt.NewJWTParser(
+		jwt.JWTParserWithSigningMethod(jwt.JWTSigningMethodNameRS256, config.Get().JWTRSAPublicKey),
+		jwt.JWTParserWithValidIssuer(config.Get().AppName),
 	)
 
 	r := chi.NewRouter()

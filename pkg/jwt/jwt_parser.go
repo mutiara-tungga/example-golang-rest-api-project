@@ -11,34 +11,34 @@ import (
 )
 
 //go:generate mockgen -destination=mock/jwt_validator.go -package=mock golang-rest-api/pkg/jwt JWTValidator
-type JWTValidator interface {
-	Validate(ctx context.Context, tokenString string) (JWTClaims, error)
+type JWTParser interface {
+	ParseAndValidate(ctx context.Context, tokenString string) (JWTClaims, error)
 }
 
 var (
 	ErrorJWTInvalid = pkgErr.NewCustomError("jwt not valid", "INVALID_JWT", http.StatusUnauthorized)
 )
 
-type JWTValidatorOptions func(*jwtValidator) error
+type JWTParserOptions func(*jwtParser) error
 
-// JWTValidatorWithSigningMethod assign jwt signing method and jwt key
+// JWTParserWithSigningMethod assign jwt signing method and jwt key
 // IF method is RSA key should fill by public key
-func JWTValidatorWithSigningMethod(methodName JWTSigningMethodName, key string) JWTValidatorOptions {
-	return func(jv *jwtValidator) error {
-		jv.jwtSigningMethodName = methodName
-		jv.signingMethod = methodName.GetSigningMethod()
+func JWTParserWithSigningMethod(methodName JWTSigningMethodName, key string) JWTParserOptions {
+	return func(jp *jwtParser) error {
+		jp.jwtSigningMethodName = methodName
+		jp.signingMethod = methodName.GetSigningMethod()
 
-		jv.jwtKeyString = key
-		switch jv.jwtSigningMethodName.GetFamily() {
+		jp.jwtKeyString = key
+		switch jp.jwtSigningMethodName.GetFamily() {
 		case JWTFamilyHMACSHA:
-			jv.jwtKey = []byte(jv.jwtKeyString)
+			jp.jwtKey = []byte(jp.jwtKeyString)
 
 		case JWTFamilyRSA:
-			privateKey, err := jwt.ParseRSAPublicKeyFromPEM([]byte(jv.jwtKeyString))
+			privateKey, err := jwt.ParseRSAPublicKeyFromPEM([]byte(jp.jwtKeyString))
 			if err != nil {
 				return err
 			}
-			jv.jwtKey = privateKey
+			jp.jwtKey = privateKey
 
 		default:
 			return ErrFailedJWTMethodNotSupported
@@ -48,15 +48,15 @@ func JWTValidatorWithSigningMethod(methodName JWTSigningMethodName, key string) 
 	}
 }
 
-func JWTValidatorWithValidIssuer(issuer string) JWTValidatorOptions {
-	return func(jv *jwtValidator) error {
-		jv.validIssuer = issuer
+func JWTParserWithValidIssuer(issuer string) JWTParserOptions {
+	return func(jp *jwtParser) error {
+		jp.validIssuer = issuer
 		return nil
 	}
 }
 
-func NewJWTValidator(options ...JWTValidatorOptions) jwtValidator {
-	v := &jwtValidator{}
+func NewJWTParser(options ...JWTParserOptions) jwtParser {
+	v := &jwtParser{}
 
 	for _, apply := range options {
 		err := apply(v)
@@ -71,7 +71,7 @@ func NewJWTValidator(options ...JWTValidatorOptions) jwtValidator {
 	return *v
 }
 
-type jwtValidator struct {
+type jwtParser struct {
 	jwtKeyString string
 	// IF signing method is RSA should be filled by public key
 	jwtKey               any
@@ -80,15 +80,15 @@ type jwtValidator struct {
 	validIssuer          string
 }
 
-func (jv jwtValidator) Validate(ctx context.Context, tokenString string) (JWTClaims, error) {
+func (jp jwtParser) ParseAndValidate(ctx context.Context, tokenString string) (JWTClaims, error) {
 	jwtToken, err := jwt.ParseWithClaims(
 		tokenString,
 		&JWTClaims{},
-		func(t *jwt.Token) (any, error) { return jv.jwtKey, nil },
-		jwt.WithValidMethods([]string{jv.signingMethod.Alg()}),
+		func(t *jwt.Token) (any, error) { return jp.jwtKey, nil },
+		jwt.WithValidMethods([]string{jp.signingMethod.Alg()}),
 		jwt.WithIssuedAt(),
 		jwt.WithExpirationRequired(),
-		jwt.WithIssuer(jv.validIssuer),
+		jwt.WithIssuer(jp.validIssuer),
 	)
 	if err != nil {
 		log.Error(ctx, "error parse claim when validate jwt", err)
