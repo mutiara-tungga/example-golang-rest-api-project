@@ -48,6 +48,21 @@ func WriteJsonMsgWithData(ctx context.Context, w http.ResponseWriter, statusCode
 	}
 }
 
+func WriteJsonMsgOnly(ctx context.Context, w http.ResponseWriter, statusCode int, msg string) {
+	hr := HttpSuccessResponse{
+		HTTPStatus: statusCode,
+		Message:    msg,
+	}
+
+	w.Header().Set(HeaderKeyContentType, HeaderApplicationJson)
+	w.WriteHeader(statusCode)
+
+	err := json.NewEncoder(w).Encode(hr)
+	if err != nil {
+		log.Error(ctx, "error http write reponse", err)
+	}
+}
+
 func WriteJsonError(ctx context.Context, w http.ResponseWriter, err error) {
 	hr := HttpErrorResponse{
 		HTTPStatus: http.StatusInternalServerError,
