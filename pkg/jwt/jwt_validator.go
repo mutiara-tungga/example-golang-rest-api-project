@@ -83,7 +83,7 @@ type jwtValidator struct {
 func (jv jwtValidator) Validate(ctx context.Context, tokenString string) (JWTClaims, error) {
 	jwtToken, err := jwt.ParseWithClaims(
 		tokenString,
-		JWTClaims{},
+		&JWTClaims{},
 		func(t *jwt.Token) (any, error) { return jv.jwtKey, nil },
 		jwt.WithValidMethods([]string{jv.signingMethod.Alg()}),
 		jwt.WithIssuedAt(),
@@ -95,12 +95,12 @@ func (jv jwtValidator) Validate(ctx context.Context, tokenString string) (JWTCla
 		return JWTClaims{}, pkgErr.NewCustomErrWithOriginalErr(ErrorJWTInvalid, err)
 	}
 
-	jwtClaims, ok := jwtToken.Claims.(JWTClaims)
+	jwtClaims, ok := jwtToken.Claims.(*JWTClaims)
 	if !ok {
 		err := fmt.Errorf("invalid jwt claims")
 		log.Error(ctx, "error casting jwt claims when validate jwt", err)
 		return JWTClaims{}, pkgErr.NewCustomErrWithOriginalErr(ErrorJWTInvalid, err)
 	}
 
-	return jwtClaims, nil
+	return *jwtClaims, nil
 }
