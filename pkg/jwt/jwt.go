@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	ErrFailedProcessJWT = pkgErr.NewCustomError("Failed Process JWT", "FAILED_PROCESS_JWT", http.StatusInternalServerError)
+	ErrFailedProcessJWT            = pkgErr.NewCustomError("Failed Process JWT", "FAILED_PROCESS_JWT", http.StatusInternalServerError)
+	ErrFailedJWTMethodNotSupported = pkgErr.NewCustomError("JWT Method Not Supported", "JWT_METHOD_NOT_SUPPORTED", http.StatusInternalServerError)
 )
 
 type User struct {
@@ -21,9 +22,18 @@ type User struct {
 }
 
 type JWTResult struct {
-	AccessToken  string
-	RefreshToken string
+	AccessToken           string
+	ExpiresAt             time.Time
+	RefreshToken          string
+	RefreshTokenExpiresAt time.Time
 }
+
+type JWTFamily string
+
+const (
+	JWTFamilyRSA     JWTFamily = "RSA"
+	JWTFamilyHMACSHA JWTFamily = "HMAC-SHA"
+)
 
 type JWTSigningMethodName string
 
@@ -55,54 +65,85 @@ func (name JWTSigningMethodName) GetSigningMethod() jwt.SigningMethod {
 	}
 }
 
+func (name JWTSigningMethodName) GetFamily() JWTFamily {
+	switch name {
+	case JWTSigningMethodNameRS256, JWTSigningMethodNameRS384, JWTSigningMethodNameRS512:
+		return JWTFamilyRSA
+	case JWTSigningMethodNameHS256, JWTSigningMethodNameHS384, JWTSigningMethodNameHS512:
+		return JWTFamilyHMACSHA
+	default:
+		return ""
+	}
+}
+
 //go:generate mockgen -destination=mock/jwt.go -package=mock transport-service/pkg/jwt JWT
 type JWTGenerator interface {
 	GenerateJWT(ctx context.Context, user User) (JWTResult, error)
 }
 
-type JWTGeneratorOptions func(*jwtGenerator)
+type JWTGeneratorOptions func(*jwtGenerator) error
 
-func JWTGeneratorWithKey(key string) JWTGeneratorOptions {
-	return func(jg *jwtGenerator) {
-		jg.jwtKey = key
-	}
-}
+func JWTGeneratorWithSigningMethod(methodName JWTSigningMethodName, key string) JWTGeneratorOptions {
+	return func(jg *jwtGenerator) error {
+		jg.jwtSigningMethodName = methodName
+		jg.signingMethod = methodName.GetSigningMethod()
 
-func JWTGeneratorWithSigningMethod(name JWTSigningMethodName) JWTGeneratorOptions {
-	return func(jg *jwtGenerator) {
-		jg.jwtSigningMethodName = name
-		jg.signingMethod = name.GetSigningMethod()
+		jg.jwtKeyString = key
+		switch jg.jwtSigningMethodName.GetFamily() {
+		case JWTFamilyHMACSHA:
+			jg.jwtKey = []byte(jg.jwtKeyString)
+
+		case JWTFamilyRSA:
+			privateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(jg.jwtKeyString))
+			if err != nil {
+				return err
+			}
+			jg.jwtKey = privateKey
+
+		default:
+			return ErrFailedJWTMethodNotSupported
+		}
+
+		return nil
 	}
 }
 
 func JWTGeneratorWithExpireDurationInSecond(durationInSecond int64) JWTGeneratorOptions {
-	return func(jg *jwtGenerator) {
+	return func(jg *jwtGenerator) error {
 		jg.expireDurationInSecond = durationInSecond
+		return nil
 	}
 }
 
 func JWTGeneratorWithRefreshTokenExpireDurationInSecond(durationInSecond int64) JWTGeneratorOptions {
-	return func(jg *jwtGenerator) {
+	return func(jg *jwtGenerator) error {
 		jg.refreshTokenExpireDurationInSecond = durationInSecond
+		return nil
 	}
 }
 
 func JWTGeneratorWithIssuer(issuer string) JWTGeneratorOptions {
-	return func(jg *jwtGenerator) {
+	return func(jg *jwtGenerator) error {
 		jg.issuer = issuer
+		return nil
 	}
 }
 
-func New(options []JWTGeneratorOptions) jwtGenerator {
+func New(options ...JWTGeneratorOptions) jwtGenerator {
 	defaultExpireDuration := int64((24 * time.Hour).Seconds())
+	defaultRefreshTokenExpireDuration := int64((48 * time.Hour).Seconds())
 	gen := &jwtGenerator{
 		timeNowFunc:                        time.Now,
 		expireDurationInSecond:             defaultExpireDuration,
-		refreshTokenExpireDurationInSecond: defaultExpireDuration,
+		refreshTokenExpireDurationInSecond: defaultRefreshTokenExpireDuration,
 	}
 
 	for _, apply := range options {
-		apply(gen)
+		err := apply(gen)
+
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	// TODO: validation
@@ -111,7 +152,8 @@ func New(options []JWTGeneratorOptions) jwtGenerator {
 }
 
 type jwtGenerator struct {
-	jwtKey                             string
+	jwtKeyString                       string
+	jwtKey                             any
 	jwtSigningMethodName               JWTSigningMethodName
 	signingMethod                      jwt.SigningMethod
 	expireDurationInSecond             int64
@@ -130,10 +172,11 @@ var (
 
 func (jg jwtGenerator) GenerateJWT(ctx context.Context, u User) (JWTResult, error) {
 	nowUnix := jg.timeNowFunc().Unix()
+	tokenExpiresUnix := nowUnix + jg.expireDurationInSecond
 	claims := jwt.MapClaims{
 		MapClaimsKeyID:       u.ID,
 		MapClaimsKeyUsername: u.Username,
-		MapClaimsKeyExpireAt: nowUnix + jg.expireDurationInSecond,
+		MapClaimsKeyExpireAt: tokenExpiresUnix,
 		MapClaimsKeyIssuedAt: nowUnix,
 		MapClaimsKeyIssuer:   jg.issuer,
 	}
@@ -149,7 +192,9 @@ func (jg jwtGenerator) GenerateJWT(ctx context.Context, u User) (JWTResult, erro
 	for k, v := range claims {
 		refreshTokenClaims[k] = v
 	}
-	refreshTokenClaims[MapClaimsKeyExpireAt] = nowUnix + jg.refreshTokenExpireDurationInSecond
+
+	refreshTokenExpireUnix := nowUnix + jg.refreshTokenExpireDurationInSecond
+	refreshTokenClaims[MapClaimsKeyExpireAt] = refreshTokenExpireUnix
 
 	refreshToken := jwt.NewWithClaims(jg.signingMethod, claims)
 	refreshTokenString, err := refreshToken.SignedString(jg.jwtKey)
@@ -159,7 +204,9 @@ func (jg jwtGenerator) GenerateJWT(ctx context.Context, u User) (JWTResult, erro
 	}
 
 	return JWTResult{
-		AccessToken:  tokenString,
-		RefreshToken: refreshTokenString,
+		AccessToken:           tokenString,
+		ExpiresAt:             time.Unix(refreshTokenExpireUnix, 0),
+		RefreshToken:          refreshTokenString,
+		RefreshTokenExpiresAt: time.Unix(refreshTokenExpireUnix, 0),
 	}, nil
 }

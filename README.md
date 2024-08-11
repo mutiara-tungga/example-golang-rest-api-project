@@ -25,3 +25,8 @@
 - update the .env
 - fill the csv
 - run `go run script/seed_user/seed_user.go`
+
+
+## How to generate RSA key for JWT
+- run generate private key first `openssl genpkey -algorithm RSA -out private_key.pem -pkeyopt rsa_keygen_bits:2048`
+- run generate public key `openssl rsa -pubout -in private_key.pem -out public_key.pem`
