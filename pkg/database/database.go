@@ -2,9 +2,16 @@ package database
 
 import (
 	"context"
+	"net/http"
+
+	pkgErr "golang-rest-api/pkg/error"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+)
+
+var (
+	RecordNotFound = pkgErr.NewCustomError("Record Not Found", "RECORD_NOT_FOUND", http.StatusNotFound)
 )
 
 type IPostgres interface {

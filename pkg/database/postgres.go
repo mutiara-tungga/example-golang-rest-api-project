@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var _ IPostgres = (*Postgres)(nil)
+var _ IPostgres = Postgres{}
 
 type PostgresConfigOption func(*PostgresConfig)
 
@@ -115,7 +115,12 @@ func NewPostgres(configOpts ...PostgresConfigOption) Postgres {
 }
 
 func (p Postgres) Get(ctx context.Context, destination any, query string, args ...any) error {
-	return pgxscan.Get(ctx, p.Pool, destination, query, args...)
+	err := pgxscan.Get(ctx, p.Pool, destination, query, args...)
+	if pgxscan.NotFound(err) {
+		return RecordNotFound
+	}
+
+	return err
 }
 
 func (p Postgres) Select(ctx context.Context, destination any, query string, args ...any) error {
