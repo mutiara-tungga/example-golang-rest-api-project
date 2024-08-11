@@ -59,8 +59,8 @@ func main() {
 	userHandler := handlerUser.NewUserHandler(userService)
 
 	// router
-	r.Method(http.MethodPost, "/api/v1/user", httpserver.Handler(userHandler.CreateUser))
-	r.Method(http.MethodPost, "/api/v1/user/login", httpserver.Handler(userHandler.Login))
+	r.Method(http.MethodPost, "/api/v1/user", httpserver.HandlerWithError(userHandler.CreateUser))
+	r.Method(http.MethodPost, "/api/v1/user/login", httpserver.HandlerWithError(userHandler.Login))
 
 	httpServer := http.Server{
 		Addr:              ":" + config.Get().AppPort,
