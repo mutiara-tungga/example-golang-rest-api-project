@@ -2,6 +2,11 @@ package user
 
 import "time"
 
+const (
+	AccessTokenCookieName  = "access_token"
+	RefreshTokenCookieName = "refresh_token"
+)
+
 type InsertUser struct {
 	ID       string
 	Name     string
@@ -45,4 +50,11 @@ type UserLoginResp struct {
 	ExpiresAt             time.Time
 	RefreshToken          string
 	RefreshTokenExpiresAt time.Time
+}
+
+type UserProfileResp struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Username string `json:"username"`
+	Phone    string `json:"phone"`
 }

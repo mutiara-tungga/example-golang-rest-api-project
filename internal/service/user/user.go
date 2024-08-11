@@ -14,6 +14,7 @@ import (
 type IUserService interface {
 	CreateUser(ctx context.Context, req modelUser.CreateUserReq) (modelUser.CreateUserResp, error)
 	UserLogin(ctx context.Context, req modelUser.UserLoginReq) (modelUser.UserLoginResp, error)
+	UserProfile(ctx context.Context, userID string) (modelUser.UserProfileResp, error)
 }
 
 type UserServiceOption func(*UserService)

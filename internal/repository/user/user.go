@@ -77,6 +77,10 @@ func (r UserRepo) GetUserByID(ctx context.Context, ID string) (userModel.User, e
 	)
 
 	if err != nil {
+		if err == database.RecordNotFound {
+			return userModel.User{}, userModel.ErrorUserNotFound
+		}
+
 		log.Error(ctx, "error get user by id", err)
 		return res, pkgErr.NewCustomErrWithOriginalErr(model.ErrorExecQuery, err)
 	}
@@ -98,6 +102,10 @@ func (r UserRepo) GetUserByUsername(ctx context.Context, username string) (userM
 	)
 
 	if err != nil {
+		if err == database.RecordNotFound {
+			return userModel.User{}, userModel.ErrorUserNotFound
+		}
+
 		log.Error(ctx, "error get user by username", err)
 		return res, pkgErr.NewCustomErrWithOriginalErr(model.ErrorExecQuery, err)
 	}

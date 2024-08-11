@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"golang-rest-api/config"
 	handlerUser "golang-rest-api/internal/handler/user"
+	modelUser "golang-rest-api/internal/model/user"
 	repoUser "golang-rest-api/internal/repository/user"
 	serviceUser "golang-rest-api/internal/service/user"
 	"golang-rest-api/pkg/database"
@@ -29,6 +30,16 @@ func main() {
 		AppVersion: "v0.0.0",
 	})
 
+	jwtGenerator := jwt.NewJWTGenerator(
+		jwt.JWTGeneratorWithIssuer(config.Get().AppName),
+		jwt.JWTGeneratorWithSigningMethod(jwt.JWTSigningMethodNameRS256, config.Get().JWTRSAPrivateKey),
+	)
+
+	jwtValidator := jwt.NewJWTValidator(
+		jwt.JWTValidatorWithSigningMethod(jwt.JWTSigningMethodNameRS256, config.Get().JWTRSAPublicKey),
+		jwt.JWTValidatorWithValidIssuer(config.Get().AppName),
+	)
+
 	r := chi.NewRouter()
 	r.Use(httpmiddleware.PanicRecoverer)
 
@@ -38,11 +49,6 @@ func main() {
 		database.WithPostgresDBUser(config.Get().DatabaseUser),
 		database.WithPostgresDBPassword(config.Get().DatabasePass),
 		database.WithPostgresDBName(config.Get().DatabaseName),
-	)
-
-	jwtGenerator := jwt.NewJWTGenerator(
-		jwt.JWTGeneratorWithIssuer(config.Get().AppName),
-		jwt.JWTGeneratorWithSigningMethod(jwt.JWTSigningMethodNameRS256, config.Get().JWTRSAPrivateKey),
 	)
 
 	// repository
@@ -59,8 +65,12 @@ func main() {
 	userHandler := handlerUser.NewUserHandler(userService)
 
 	// router
-	r.Method(http.MethodPost, "/api/v1/user", httpserver.HandlerWithError(userHandler.CreateUser))
 	r.Method(http.MethodPost, "/api/v1/user/login", httpserver.HandlerWithError(userHandler.Login))
+	r.Group(func(r chi.Router) {
+		r.Use(httpmiddleware.JWTAuthUser(jwtValidator, modelUser.AccessTokenCookieName))
+		r.Method(http.MethodPost, "/api/v1/user", httpserver.HandlerWithError(userHandler.CreateUser))
+		r.Method(http.MethodGet, "/api/v1/user/profile", httpserver.HandlerWithError(userHandler.UserProfile))
+	})
 
 	httpServer := http.Server{
 		Addr:              ":" + config.Get().AppPort,
