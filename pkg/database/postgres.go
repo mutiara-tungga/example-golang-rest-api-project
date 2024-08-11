@@ -106,6 +106,11 @@ func NewPostgres(configOpts ...PostgresConfigOption) Postgres {
 		panic(err)
 	}
 
+	err = dbPool.Ping(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
 	return Postgres{dbPool}
 }
 
