@@ -5,7 +5,13 @@
 - [Go v1.22+](https://go.dev/dl)
 - [PostgreSql](https://www.postgresql.org/download/) or [docker](https://hub.docker.com/_/postgres)
 - [Golang Migrate](https://github.com/golang-migrate/migrate/tree/master)
+- [swagger](https://github.com/swaggo/swag/) `go install github.com/swaggo/swag/cmd/swag@v1.16.4`
 - docker and docker-compose
+
+## How to Run
+- Install swagger
+- swag init -g cmd/api/main.go
+- go run cmd/api/main.go
 
 ## How to use postgres docker
 - run `cp docker/env.example docker/.env`

@@ -6,3 +6,9 @@ migrateup:
 
 migratedown:
 	migrate -path db/migration -database "$(DB_URL)" -verbose down $(step)
+
+run-rest-api:
+	go run cmd/api/main.go
+
+swaggo:
+	swag init -g cmd/api/main.go --pd

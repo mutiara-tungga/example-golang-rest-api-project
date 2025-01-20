@@ -12,6 +12,18 @@ import (
 	"net/http"
 )
 
+// Login godoc
+// @Summary      Login
+// @Description  Login
+// @Tags         user
+// @Accept       json
+// @Produce      json
+// @Param        request body modelUser.UserLoginReq true "Request Body"
+// @Success      200  {object}  httpserver.HttpSuccessResponse
+// @Failure      400  {object}  httpserver.HttpErrorResponse
+// @Failure      404  {object}  httpserver.HttpErrorResponse
+// @Failure      500  {object}  httpserver.HttpErrorResponse
+// @Router       /api/v1/user/login [post]
 func (h UserHandler) Login(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 	req := modelUser.UserLoginReq{}

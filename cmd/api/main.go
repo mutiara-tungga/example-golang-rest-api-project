@@ -19,7 +19,10 @@ import (
 	"syscall"
 	"time"
 
+	_ "golang-rest-api/docs"
+
 	"github.com/go-chi/chi/v5"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
 func main() {
@@ -65,6 +68,10 @@ func main() {
 	userHandler := handlerUser.NewUserHandler(userService)
 
 	// router
+	r.Get("/swagger/*", httpSwagger.Handler(
+		httpSwagger.URL("/swagger/doc.json"), //The url pointing to API definition
+	))
+
 	r.Method(http.MethodPost, "/api/v1/user/login", httpserver.HandlerWithError(userHandler.Login))
 	r.Group(func(r chi.Router) {
 		r.Use(httpmiddleware.JWTAuthUser(jwtValidator, modelUser.AccessTokenCookieName))
