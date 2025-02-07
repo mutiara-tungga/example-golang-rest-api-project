@@ -47,7 +47,7 @@ Before running the application, configure your environment variables:
    ```
 
 2. Open `.env` and update the configuration based on your preferences.  
-   **Note:** For JWT environment variables, check the section **[Generate RSA Keys for JWT](#-generate-rsa-keys-for-jwt)**.
+   **Note:** For JWT environment variables, check the section **[Generate RSA Keys for JWT](#-generate-rsa-keys-for-jwt---lock-it-down)**.
 
 ### 2. Generate Swagger Documentation
 
