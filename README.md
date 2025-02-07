@@ -58,7 +58,7 @@ Your API is now running, and you can start making requests.
 
 ---
 
-## 🐳 PostgreSQL with Docker - Let's Get Gile!
+## 🐳 PostgreSQL with Docker
 
 If you prefer running PostgreSQL in a container, follow these steps:
 
