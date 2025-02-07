@@ -36,7 +36,20 @@ Before diving in, make sure you have the following installed on your system:
 
 ## 🚀 Quick Start
 
-### 1. Generate Swagger Documentation
+### 1. Set Up Environment Variables
+
+Before running the application, configure your environment variables:
+
+1. Copy the example environment file:
+
+   ```sh
+   cp env.example .env
+   ```
+
+2. Open `.env` and update the configuration based on your preferences.  
+   **Note:** For JWT environment variables, check the section **[Generate RSA Keys for JWT](#-generate-rsa-keys-for-jwt)**.
+
+### 2. Generate Swagger Documentation
 
 Swagger documentation is crucial for understanding and testing your API endpoints. To generate the documentation, run:
 
@@ -46,7 +59,7 @@ swag init -g cmd/api/main.go
 
 This command scans your code for Swagger annotations and creates the necessary documentation files.
 
-### 2. Start the API Server
+### 3. Start the API Server
 
 To launch your API server in development mode, execute:
 
