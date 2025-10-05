@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
+//go:generate mockgen -destination=mock/user.go -package=mock golang-rest-api/internal/service/user IUserService
 type IUserService interface {
 	CreateUser(ctx context.Context, req modelUser.CreateUserReq) (modelUser.CreateUserResp, error)
 	UserLogin(ctx context.Context, req modelUser.UserLoginReq) (modelUser.UserLoginResp, error)
