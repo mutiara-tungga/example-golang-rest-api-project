@@ -1,85 +1,49 @@
 package httpserver
 
 import (
-	"context"
 	"encoding/json"
-	pkgErr "golang-rest-api/pkg/error"
-	"golang-rest-api/pkg/log"
+	"errors"
 	"net/http"
+
+	pkgErr "golang-rest-api/pkg/error"
 )
 
-type HttpSuccessResponse struct {
+type SuccessResponse struct {
 	Message    string `json:"message,omitempty"`
 	Data       any    `json:"data,omitempty"`
 	Meta       any    `json:"meta,omitempty"`
 	HTTPStatus int    `json:"http_status"`
 }
 
-type HttpErrorResponse struct {
+type ErrorResponse struct {
 	Message    string `json:"message,omitempty"`
 	HTTPStatus int    `json:"http_status"`
 	ErrorCode  string `json:"error_code"`
 }
 
-type PaginationMetaInfo struct {
-	Limit  int `json:"limit"`
-	Offset int `json:"offset"`
-	Total  int `json:"total"`
+func WriteSuccess(w http.ResponseWriter, status int, message string, data any) error {
+	return WriteJSON(w, status, SuccessResponse{HTTPStatus: status, Message: message, Data: data})
 }
 
-const (
-	HeaderKeyContentType  = "Content-Type"
-	HeaderApplicationJson = "application/json"
-)
-
-func WriteJsonMsgWithData(ctx context.Context, w http.ResponseWriter, statusCode int, msg string, data any) {
-	hr := HttpSuccessResponse{
-		HTTPStatus: statusCode,
-		Message:    msg,
-		Data:       data,
-	}
-
-	w.Header().Set(HeaderKeyContentType, HeaderApplicationJson)
-	w.WriteHeader(statusCode)
-
-	err := json.NewEncoder(w).Encode(hr)
-	if err != nil {
-		log.Error(ctx, "error http write reponse", err)
-	}
+func WriteMessage(w http.ResponseWriter, status int, message string) error {
+	return WriteJSON(w, status, SuccessResponse{HTTPStatus: status, Message: message})
 }
 
-func WriteJsonMsgOnly(ctx context.Context, w http.ResponseWriter, statusCode int, msg string) {
-	hr := HttpSuccessResponse{
-		HTTPStatus: statusCode,
-		Message:    msg,
+func WriteError(w http.ResponseWriter, err error) {
+	resp := ErrorResponse{HTTPStatus: http.StatusInternalServerError, ErrorCode: "INTERNAL_SERVER_ERROR", Message: err.Error()}
+	var custom pkgErr.CustomError
+	if errors.As(err, &custom) {
+		resp.ErrorCode, resp.HTTPStatus = custom.GetErrorCode(), custom.GetStatusCode()
 	}
-
-	w.Header().Set(HeaderKeyContentType, HeaderApplicationJson)
-	w.WriteHeader(statusCode)
-
-	err := json.NewEncoder(w).Encode(hr)
-	if err != nil {
-		log.Error(ctx, "error http write reponse", err)
-	}
+	_ = WriteJSON(w, resp.HTTPStatus, resp)
 }
 
-func WriteJsonError(ctx context.Context, w http.ResponseWriter, err error) {
-	hr := HttpErrorResponse{
-		HTTPStatus: http.StatusInternalServerError,
-		ErrorCode:  "INTERNAL_SERVER_ERROR",
-		Message:    err.Error(),
-	}
+func WriteJSON(w http.ResponseWriter, status int, value any) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	return json.NewEncoder(w).Encode(value)
+}
 
-	if err, ok := err.(pkgErr.CustomError); ok {
-		hr.ErrorCode = err.GetErrorCode()
-		hr.HTTPStatus = err.GetStatusCode()
-	}
-
-	w.Header().Set(HeaderKeyContentType, HeaderApplicationJson)
-	w.WriteHeader(hr.HTTPStatus)
-
-	err = json.NewEncoder(w).Encode(hr)
-	if err != nil {
-		log.Error(ctx, "error http write reponse", err)
-	}
+func DecodeJSON(r *http.Request, dst any) error {
+	return json.NewDecoder(r.Body).Decode(dst)
 }

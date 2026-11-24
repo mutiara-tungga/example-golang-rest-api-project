@@ -3,87 +3,59 @@ package httpmiddleware
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
+
 	pkgErr "golang-rest-api/pkg/error"
 	httpserver "golang-rest-api/pkg/http_server"
 	"golang-rest-api/pkg/jwt"
 	"golang-rest-api/pkg/log"
-	"net/http"
-	"strings"
 )
 
-var (
-	ErrorUnauthorized      = pkgErr.NewCustomError("unauthorized", "UNAUTHORIZED", http.StatusUnauthorized)
-	ErrorJWTClaimsNotFound = pkgErr.NewCustomError("unauthorized: user jwt claims not found", "JWT_CLAIMS_NOT_FOUND", http.StatusUnauthorized)
-)
+type claimsKey struct{}
 
-type contexKey string
+var errUnauthorized = pkgErr.NewCustomError("unauthorized", "UNAUTHORIZED", http.StatusUnauthorized)
 
-const (
-	contextKeyUserClaims contexKey = "user_claims"
-)
-
-func JWTAuthUser(parser jwt.JWTParser, cookieName string) func(next http.Handler) http.Handler {
+func JWTAuth(parser jwt.JWTParser, cookieName string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(
-			func(w http.ResponseWriter, r *http.Request) {
-				ctx := r.Context()
-				tokenString, err := getToken(r, cookieName)
-				if err != nil {
-					httpserver.WriteJsonError(ctx, w, err)
-					return
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			token := ""
+			if cookieName != "" {
+				cookie, _ := r.Cookie(cookieName)
+				if cookie != nil {
+					token = cookie.Value
 				}
-
-				tokenClaims, err := parser.ParseAndValidate(ctx, tokenString)
-				if err != nil {
-					httpserver.WriteJsonError(ctx, w, pkgErr.NewCustomErrWithOriginalErr(ErrorUnauthorized, err))
-					return
+			}
+			if token == "" {
+				parts := strings.SplitN(r.Header.Get("Authorization"), " ", 2)
+				if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
+					token = parts[1]
 				}
-
-				r = r.WithContext(context.WithValue(ctx, contextKeyUserClaims, tokenClaims))
-				next.ServeHTTP(w, r)
-			})
+			}
+			if token == "" {
+				log.Error(r.Context(), "token not found", fmt.Errorf("token not found"))
+				writeUnauthorized(w, errUnauthorized)
+				return
+			}
+			claims, err := parser.ParseAndValidate(r.Context(), token)
+			if err != nil {
+				writeUnauthorized(w, pkgErr.NewCustomErrWithOriginalErr(errUnauthorized, err))
+				return
+			}
+			ctx := context.WithValue(r.Context(), claimsKey{}, claims)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
 	}
 }
 
-func getToken(r *http.Request, cookieName string) (string, error) {
-	ctx := r.Context()
-
-	token := ""
-	if len(cookieName) > 0 {
-		cookie, _ := r.Cookie(cookieName)
-		if cookie != nil {
-			token = cookie.Value
-		}
+func Claims(ctx context.Context) (jwt.JWTClaims, error) {
+	claims, ok := ctx.Value(claimsKey{}).(jwt.JWTClaims)
+	if !ok || claims.Subject == "" {
+		return jwt.JWTClaims{}, errUnauthorized
 	}
-
-	if len(token) == 0 {
-		bearerToken := r.Header.Get("Authorization")
-		bearerTokens := strings.Split(bearerToken, " ")
-		if len(bearerTokens) > 1 {
-			token = bearerTokens[1]
-		}
-	}
-
-	if len(token) == 0 {
-		err := fmt.Errorf("token not found")
-		log.Error(ctx, "token not found", err)
-		return "", pkgErr.NewCustomErrWithOriginalErr(ErrorUnauthorized, err)
-	}
-
-	return token, nil
+	return claims, nil
 }
 
-func GetUserClaims(ctx context.Context) (jwt.JWTClaims, error) {
-	v := ctx.Value(contextKeyUserClaims)
-
-	jwtClaims, ok := v.(jwt.JWTClaims)
-	if !ok {
-		return jwt.JWTClaims{}, ErrorJWTClaimsNotFound
-	}
-
-	if len(jwtClaims.Subject) == 0 {
-		return jwt.JWTClaims{}, ErrorJWTClaimsNotFound
-	}
-
-	return jwtClaims, nil
+func writeUnauthorized(w http.ResponseWriter, err error) {
+	httpserver.WriteError(w, err)
 }

@@ -1,44 +1,27 @@
-package user
+package service
 
 import (
 	"context"
 
-	modelUser "golang-rest-api/internal/model/user"
-
-	"github.com/jackc/pgx/v5"
+	"golang-rest-api/internal/entities"
 )
 
-func (s UserService) CreateUser(ctx context.Context, req modelUser.CreateUserReq) (modelUser.CreateUserResp, error) {
-	hashPwdBytes, err := s.crypter.GenerateHash(ctx, req.Password)
+type CreateUserCommand struct {
+	Name, Username, Phone, Password, Actor string
+}
+
+type CreateUserResult struct {
+	ID, Name, Username, Phone string
+}
+
+func (s *Service) CreateUser(ctx context.Context, cmd CreateUserCommand) (CreateUserResult, error) {
+	hash, err := s.passwords.Hash(ctx, cmd.Password)
 	if err != nil {
-		return modelUser.CreateUserResp{}, err
+		return CreateUserResult{}, err
 	}
-
-	insertUserArgs := modelUser.InsertUser{
-		ID:       s.uuidGenerator(),
-		Name:     req.Name,
-		Username: req.Username,
-		Phone:    req.Phone,
-		Password: string(hashPwdBytes),
-		Actor:    req.Actor,
+	u := entities.User{ID: s.newID(), Name: cmd.Name, Username: cmd.Username, Phone: cmd.Phone, Password: hash}
+	if err := s.users.Create(ctx, u, cmd.Actor); err != nil {
+		return CreateUserResult{}, err
 	}
-
-	err = s.txHandler.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		err := s.userRepo.CreateUserTx(ctx, tx, insertUserArgs)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return modelUser.CreateUserResp{}, err
-	}
-
-	return modelUser.CreateUserResp{
-		ID:       insertUserArgs.ID,
-		Name:     insertUserArgs.Name,
-		Username: insertUserArgs.Username,
-		Phone:    insertUserArgs.Phone,
-	}, nil
+	return CreateUserResult{ID: u.ID, Name: u.Name, Username: u.Username, Phone: u.Phone}, nil
 }

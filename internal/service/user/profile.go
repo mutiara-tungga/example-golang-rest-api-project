@@ -1,20 +1,13 @@
-package user
+package service
 
-import (
-	"context"
-	modelUser "golang-rest-api/internal/model/user"
-)
+import "context"
 
-func (s UserService) UserProfile(ctx context.Context, userID string) (modelUser.UserProfileResp, error) {
-	u, err := s.userRepo.GetUserByID(ctx, userID)
+type Profile struct{ ID, Name, Username, Phone string }
+
+func (s *Service) Profile(ctx context.Context, id string) (Profile, error) {
+	u, err := s.users.GetByID(ctx, id)
 	if err != nil {
-		return modelUser.UserProfileResp{}, err
+		return Profile{}, err
 	}
-
-	return modelUser.UserProfileResp{
-		ID:       u.ID,
-		Name:     u.Name,
-		Username: u.Username,
-		Phone:    u.Phone,
-	}, nil
+	return Profile{ID: u.ID, Name: u.Name, Username: u.Username, Phone: u.Phone}, nil
 }

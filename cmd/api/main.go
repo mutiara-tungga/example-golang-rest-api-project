@@ -2,117 +2,111 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"golang-rest-api/config"
-	handlerUser "golang-rest-api/internal/handler/user"
-	modelUser "golang-rest-api/internal/model/user"
-	repoUser "golang-rest-api/internal/repository/user"
-	serviceUser "golang-rest-api/internal/service/user"
-	"golang-rest-api/pkg/database"
-	httpmiddleware "golang-rest-api/pkg/http_middleware"
-	httpserver "golang-rest-api/pkg/http_server"
-	"golang-rest-api/pkg/jwt"
-	"golang-rest-api/pkg/log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"golang-rest-api/config"
+	httpapi "golang-rest-api/internal/adapters/primary/httpapi/user"
+	passwordadapter "golang-rest-api/internal/adapters/secondary/password"
+	postgres "golang-rest-api/internal/adapters/secondary/postgres/user"
+	tokenadapter "golang-rest-api/internal/adapters/secondary/token"
+	service "golang-rest-api/internal/service/user"
+	"golang-rest-api/pkg/database"
+	"golang-rest-api/pkg/jwt"
+	"golang-rest-api/pkg/log"
+
 	_ "golang-rest-api/docs"
 
-	"github.com/go-chi/chi/v5"
-	httpSwagger "github.com/swaggo/http-swagger/v2"
+	"github.com/spf13/cobra"
 )
 
 func main() {
-	config.LoadEnvConfig()
-	log.InitLogger(log.LoggerMetaData{
-		LogLevel:   "",
-		Service:    config.Get().AppName,
-		AppVersion: "v0.0.0",
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
+	defer stop()
+
+	if err := newRootCommand().ExecuteContext(ctx); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func newRootCommand() *cobra.Command {
+	root := &cobra.Command{
+		Use:           "pos-api",
+		Short:         "POS REST API",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+	}
+	root.AddCommand(&cobra.Command{
+		Use:   "serve",
+		Short: "Start the REST API server",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runServer(cmd.Context())
+		},
 	})
+	root.AddCommand(&cobra.Command{
+		Use:   "version",
+		Short: "Print the application version",
+		Run: func(cmd *cobra.Command, _ []string) {
+			fmt.Fprintln(cmd.OutOrStdout(), "golang-rest-api v0.0.0")
+		},
+	})
+	return root
+}
 
-	jwtGenerator := jwt.NewJWTGenerator(
-		jwt.JWTGeneratorWithIssuer(config.Get().AppName),
-		jwt.JWTGeneratorWithSigningMethod(jwt.JWTSigningMethodNameRS256, config.Get().JWTRSAPrivateKey),
-	)
+func runServer(ctx context.Context) error {
+	config.LoadEnvConfig()
+	log.InitLogger(log.LoggerMetaData{LogLevel: "", Service: config.Get().AppName, AppVersion: "v0.0.0"})
 
-	jwtValidator := jwt.NewJWTParser(
-		jwt.JWTParserWithSigningMethod(jwt.JWTSigningMethodNameRS256, config.Get().JWTRSAPublicKey),
-		jwt.JWTParserWithValidIssuer(config.Get().AppName),
-	)
+	jwtGenerator := jwt.NewJWTGenerator(jwt.JWTGeneratorWithIssuer(config.Get().AppName), jwt.JWTGeneratorWithSigningMethod(jwt.JWTSigningMethodNameRS256, config.Get().JWTRSAPrivateKey))
+	jwtValidator := jwt.NewJWTParser(jwt.JWTParserWithSigningMethod(jwt.JWTSigningMethodNameRS256, config.Get().JWTRSAPublicKey), jwt.JWTParserWithValidIssuer(config.Get().AppName))
 
-	r := chi.NewRouter()
-	r.Use(httpmiddleware.PanicRecoverer)
-
-	posgresDB := database.NewPostgres(
-		database.WithPostgresDBHost(config.Get().DatabaseHost),
-		database.WithPostgresDBPort(config.Get().DatabasePort),
-		database.WithPostgresDBUser(config.Get().DatabaseUser),
-		database.WithPostgresDBPassword(config.Get().DatabasePass),
+	postgresDB := database.NewPostgres(
+		database.WithPostgresDBHost(config.Get().DatabaseHost), database.WithPostgresDBPort(config.Get().DatabasePort),
+		database.WithPostgresDBUser(config.Get().DatabaseUser), database.WithPostgresDBPassword(config.Get().DatabasePass),
 		database.WithPostgresDBName(config.Get().DatabaseName),
 	)
+	defer postgresDB.Close()
 
-	// repository
-	userRepo := repoUser.NewUserRepo(posgresDB)
+	userRepo := postgres.NewRepository(postgresDB)
+	userService := service.NewService(userRepo, passwordadapter.NewBcrypt(), tokenadapter.NewJWT(jwtGenerator))
+	userHandler := httpapi.NewUserHandler(userService)
+	router := httpapi.NewRouter(userHandler, jwtValidator)
 
-	// service
-	userService := serviceUser.NewUserService(
-		serviceUser.WithTxHandler(posgresDB),
-		serviceUser.WithUserRepo(userRepo),
-		serviceUser.WithJWTGenerator(jwtGenerator),
-	)
-
-	// handler
-	userHandler := handlerUser.NewUserHandler(userService)
-
-	// router
-	r.Get("/swagger/*", httpSwagger.Handler(
-		httpSwagger.URL("/swagger/doc.json"), //The url pointing to API definition
-	))
-
-	r.Method(http.MethodPost, "/api/v1/user/login", httpserver.HandlerWithError(userHandler.Login))
-	r.Group(func(r chi.Router) {
-		r.Use(httpmiddleware.JWTAuthUser(jwtValidator, modelUser.AccessTokenCookieName))
-		r.Method(http.MethodPost, "/api/v1/user", httpserver.HandlerWithError(userHandler.CreateUser))
-		r.Method(http.MethodGet, "/api/v1/user/profile", httpserver.HandlerWithError(userHandler.UserProfile))
-	})
-
-	httpServer := http.Server{
+	server := &http.Server{
 		Addr:              ":" + config.Get().AppPort,
-		Handler:           r,
+		Handler:           router,
 		ReadTimeout:       5 * time.Minute,
 		ReadHeaderTimeout: 5 * time.Minute,
 		WriteTimeout:      5 * time.Minute,
 	}
 
-	// Start HTTP server
-	go func() {
-		log.Info(context.Background(), fmt.Sprintf("Start Http Server at port %s", config.Get().AppPort))
+	log.Info(ctx, fmt.Sprintf("Start Chi HTTP server at port %s", config.Get().AppPort))
+	serverErr := make(chan error, 1)
+	go func() { serverErr <- server.ListenAndServe() }()
 
-		if err := httpServer.ListenAndServe(); err != http.ErrServerClosed {
-			log.Fatal(context.Background(), "Error HTTP server ListenAndServe: ", err)
+	select {
+	case err := <-serverErr:
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
 		}
-	}()
-
-	// Capture SIGINT and SIGTERM signals for graceful shutdown
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
-	// Wait until we receive a shutdown signal
-	<-signals
-
-	// Create a context with a 30-second timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	log.Info(ctx, "Closing http server")
-
-	// Attempt a graceful shutdown
-	if err := httpServer.Shutdown(ctx); err != nil {
-		log.Error(ctx, "Error server forced to shutdown: ", err)
+		return fmt.Errorf("HTTP server failed: %w", err)
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		log.Info(shutdownCtx, "Closing HTTP server")
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			return fmt.Errorf("HTTP server shutdown failed: %w", err)
+		}
+		if err := <-serverErr; err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return fmt.Errorf("HTTP server failed while shutting down: %w", err)
+		}
+		log.Info(context.Background(), "HTTP server exiting gracefully")
+		return nil
 	}
-
-	log.Info(context.Background(), "Http server exiting gracefully")
 }

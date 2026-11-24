@@ -1,34 +1,16 @@
-package user
+package service
 
-import (
-	"context"
-	modelUser "golang-rest-api/internal/model/user"
-	"golang-rest-api/pkg/jwt"
-)
+import "context"
 
-func (s UserService) UserLogin(ctx context.Context, req modelUser.UserLoginReq) (modelUser.UserLoginResp, error) {
-	u, err := s.userRepo.GetUserByUsername(ctx, req.Username)
+type LoginCommand struct{ Username, Password string }
+
+func (s *Service) Login(ctx context.Context, cmd LoginCommand) (TokenPair, error) {
+	u, err := s.users.GetByUsername(ctx, cmd.Username)
 	if err != nil {
-		return modelUser.UserLoginResp{}, err
+		return TokenPair{}, err
 	}
-
-	passMatch := s.crypter.IsPWAndHashPWMatch(ctx, []byte(req.Password), []byte(u.Password))
-	if !passMatch {
-		return modelUser.UserLoginResp{}, modelUser.ErrorLoginErrorWrongPassword
+	if !s.passwords.Matches(ctx, cmd.Password, u.Password) {
+		return TokenPair{}, ErrWrongPassword
 	}
-
-	jwtToken, err := s.jwtGenerator.GenerateJWT(ctx, jwt.User{
-		ID:       u.ID,
-		Username: u.Username,
-	})
-	if err != nil {
-		return modelUser.UserLoginResp{}, err
-	}
-
-	return modelUser.UserLoginResp{
-		AccessToken:           jwtToken.AccessToken,
-		ExpiresAt:             jwtToken.ExpiresAt,
-		RefreshToken:          jwtToken.RefreshToken,
-		RefreshTokenExpiresAt: jwtToken.RefreshTokenExpiresAt,
-	}, nil
+	return s.tokens.Issue(ctx, u.ID, u.Username)
 }
