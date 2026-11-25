@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	"golang-rest-api/internal/entities"
 )
@@ -20,7 +19,7 @@ func (s *Service) CreateUser(ctx context.Context, cmd CreateUserCommand) (Create
 	if err != nil {
 		return CreateUserResult{}, err
 	}
-	fmt.Println("pass", hash)
+
 	u := entities.User{ID: s.newID(), Name: cmd.Name, Username: cmd.Username, Phone: cmd.Phone, Password: hash}
 	if err := s.users.Create(ctx, u, cmd.Actor); err != nil {
 		return CreateUserResult{}, err
