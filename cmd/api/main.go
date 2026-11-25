@@ -37,8 +37,8 @@ func main() {
 
 func newRootCommand() *cobra.Command {
 	root := &cobra.Command{
-		Use:           "pos-api",
-		Short:         "POS REST API",
+		Use:           "golang-project",
+		Short:         "Golang Rest Project",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -53,7 +53,7 @@ func newRootCommand() *cobra.Command {
 		Use:   "version",
 		Short: "Print the application version",
 		Run: func(cmd *cobra.Command, _ []string) {
-			fmt.Fprintln(cmd.OutOrStdout(), "golang-rest-api v0.0.0")
+			fmt.Fprintln(cmd.OutOrStdout(), "golang-project v0.0.0")
 		},
 	})
 	return root
