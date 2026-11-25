@@ -6,8 +6,12 @@ import (
 
 	service "golang-rest-api/internal/service/user"
 	pkgErr "golang-rest-api/pkg/error"
+	httpserver "golang-rest-api/pkg/http_server"
 	"golang-rest-api/pkg/validator"
 )
+
+type SuccessResponse = httpserver.SuccessResponse
+type ErrorResponse = httpserver.ErrorResponse
 
 type loginRequest struct {
 	Username string `json:"username" validate:"required"`
