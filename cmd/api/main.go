@@ -25,6 +25,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// @title Example Golang REST API
+// @version 1.0
+// @description REST API documentation.
+// @securityDefinitions.apikey CookieAuth
+// @in header
+// @name Cookie
+// @description Send the access token as: access_token=<JWT>
 func main() {
 	// Capture SIGINT and SIGTERM signals for graceful shutdown
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)

@@ -15,6 +15,17 @@ type createUserRequest struct {
 	Actor    string `json:"-"`
 }
 
+// CreateUser godoc
+// @Summary Create a user
+// @Description Create a user account.
+// @Tags user
+// @Accept json
+// @Produce json
+// @Param request body createUserRequest true "User details"
+// @Success 201 {object} SuccessResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /api/v1/user [post]
 func (h UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var req createUserRequest
 	if err := decodeJSON(r, &req); err != nil {
