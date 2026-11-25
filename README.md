@@ -5,7 +5,7 @@ It serves as a **template** for building RESTful APIs with Golang.
 
 ## Architecture
 
-The API uses a hexagonal layout. `internal/application` contains use cases and the ports they need; `internal/domain` contains business entities; and `internal/adapters` contains Chi HTTP handlers plus PostgreSQL, password hashing, and JWT implementations. `cmd/api` wires these pieces together and uses Cobra for CLI commands.
+The API uses a hexagonal layout. `internal/service` contains use cases and the ports they need; `internal/entities` contains business entities; and `internal/adapters` contains Chi HTTP handlers plus PostgreSQL, password hashing, and JWT implementations. `cmd/api` wires these pieces together and uses Cobra for CLI commands.
 
 For the user API, the dependency flow is:
 
