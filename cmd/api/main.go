@@ -26,6 +26,7 @@ import (
 )
 
 func main() {
+	// Capture SIGINT and SIGTERM signals for graceful shutdown
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
 	defer stop()
 
@@ -97,9 +98,11 @@ func runServer(ctx context.Context) error {
 		}
 		return fmt.Errorf("HTTP server failed: %w", err)
 	case <-ctx.Done():
+		// Create a context with a 30-second timeout
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		log.Info(shutdownCtx, "Closing HTTP server")
+		// Attempt a graceful shutdown
 		if err := server.Shutdown(shutdownCtx); err != nil {
 			return fmt.Errorf("HTTP server shutdown failed: %w", err)
 		}
