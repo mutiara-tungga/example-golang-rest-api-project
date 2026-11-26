@@ -3,6 +3,19 @@
 This is an **example project** built with **Go** and **PostgreSQL**, supporting **Swagger**, **Docker**, and **Migrations**.  
 It serves as a **template** for building RESTful APIs with Golang.  
 
+## Architecture
+
+The API uses a hexagonal layout. `internal/service` contains use cases and the ports they need; `internal/entities` contains business entities; and `internal/adapters` contains Chi HTTP handlers plus PostgreSQL, password hashing, and JWT implementations. `cmd/api` wires these pieces together and uses Cobra for CLI commands.
+
+For the user API, the dependency flow is:
+
+```text
+Chi HTTP adapter -> application user use cases -> application ports
+                                               <- PostgreSQL/password/JWT adapters
+```
+
+The application package does not import Chi or `pgx`. Adapters implement the application ports, and `cmd/api` provides the concrete implementations.
+
 ---
 
 ## 📦 Prerequisites
@@ -64,8 +77,10 @@ This command scans your code for Swagger annotations and creates the necessary d
 To launch your API server in development mode, execute:
 
 ```sh
-go run cmd/api/main.go
+go run ./cmd/api serve
 ```
+
+Use `go run ./cmd/api --help` to list commands.
 
 Your API is now running, and you can start making requests.
 

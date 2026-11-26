@@ -2,12 +2,14 @@ package database
 
 import (
 	"context"
-	"golang-rest-api/internal/model"
 	pkgErr "golang-rest-api/pkg/error"
 	"golang-rest-api/pkg/log"
+	"net/http"
 
 	"github.com/jackc/pgx/v5"
 )
+
+var errTransaction = pkgErr.NewCustomError("database transaction failed", "DATABASE_TRANSACTION_FAILED", http.StatusInternalServerError)
 
 type PgxTxFn func(context.Context, pgx.Tx) error
 
@@ -27,7 +29,7 @@ func (th *pgxTxHandler) WithTransaction(ctx context.Context, fn PgxTxFn) (err er
 	tx, err := th.db.Begin(ctx)
 	if err != nil {
 		log.Error(ctx, "failed to begin transaction ", err)
-		return pkgErr.NewCustomErrWithOriginalErr(model.ErrorExecQuery, err)
+		return pkgErr.NewCustomErrWithOriginalErr(errTransaction, err)
 	}
 
 	defer func() {
@@ -51,7 +53,7 @@ func (th *pgxTxHandler) WithTransaction(ctx context.Context, fn PgxTxFn) (err er
 		commitErr := tx.Commit(ctx)
 		if commitErr != nil {
 			log.Error(ctx, "failed to commit transaction", err)
-			err = pkgErr.NewCustomErrWithOriginalErr(model.ErrorExecQuery, commitErr)
+			err = pkgErr.NewCustomErrWithOriginalErr(errTransaction, commitErr)
 		}
 	}()
 
